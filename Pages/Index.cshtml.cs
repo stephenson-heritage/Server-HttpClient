@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -10,48 +11,37 @@ using Microsoft.Extensions.Logging;
 using Models.Cards;
 using Models.RandomUsers;
 
-namespace Server_HttpClient.Pages
-{
-    public class IndexModel : PageModel
-    {
+namespace Server_HttpClient.Pages {
+    public class IndexModel : PageModel {
         private readonly ILogger<IndexModel> _logger;
-        private HttpClient httpClient = new HttpClient();
+        private HttpClient httpClient = new HttpClient ();
         public RandomUsers users { get; set; }
         public Cards cards { get; set; }
 
-        public IndexModel(ILogger<IndexModel> logger)
-        {
+        public IndexModel (ILogger<IndexModel> logger) {
             _logger = logger;
         }
 
-        public async Task<IActionResult> OnGetAsync(int? count)
-        {
+        public async Task<IActionResult> OnGetAsync (int? count) {
 
-            HttpResponseMessage response = await httpClient.GetAsync("https://randomuser.me/api/?results=3");
+            HttpResponseMessage response = await httpClient.GetAsync ("https://randomuser.me/api/?results=3");
 
-            if (response.IsSuccessStatusCode)
-            {
-                var dataStream = await response.Content.ReadAsStreamAsync();
+            if (response.IsSuccessStatusCode) {
+                var dataStream = await response.Content.ReadAsStreamAsync ();
 
-                users = await JsonSerializer.DeserializeAsync<RandomUsers>(
+                users = await JsonSerializer.DeserializeAsync<RandomUsers> (
                     dataStream,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
 
-
-            response = await httpClient.GetAsync("https://api.scryfall.com/cards/search?q=usd%3E1500");
-
-            if (response.IsSuccessStatusCode)
-            {
-                var dataStream = await response.Content.ReadAsStreamAsync();
-
-                cards = await JsonSerializer.DeserializeAsync<Cards>(
-                    dataStream,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            try {
+                cards = await httpClient.GetFromJsonAsync<Cards> (
+                    "https://api.scryfall.com/cards/search?q=usd%3E1500");
+            } catch (HttpRequestException hre) {
+                _logger.Log (LogLevel.Error, $"Could not load card data:{hre.StatusCode}:{hre.Message}");
             }
 
-
-            return Page();
+            return Page ();
 
         }
     }
